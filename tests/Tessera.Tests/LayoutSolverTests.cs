@@ -1,0 +1,120 @@
+using Tessera.Layout;
+using Tessera.Primitives;
+
+namespace Tessera.Tests;
+
+public class LayoutSolverTests
+{
+    private static int Sum(int[] a)
+    {
+        int s = 0;
+        foreach (var x in a)
+        {
+            s += x;
+        }
+
+        return s;
+    }
+
+    [Fact]
+    public void FixedLengths_ExactSplit()
+    {
+        var sizes = LayoutSolver.Solve(100, [Constraint.Length(30), Constraint.Length(70)]);
+        Assert.Equal([30, 70], sizes);
+    }
+
+    [Fact]
+    public void Fill_SharesLeftoverEqually()
+    {
+        var sizes = LayoutSolver.Solve(100, [Constraint.Length(20), Constraint.Fill(), Constraint.Fill()]);
+        Assert.Equal(20, sizes[0]);
+        Assert.Equal(80, sizes[1] + sizes[2]);
+        Assert.Equal(40, sizes[1]);
+        Assert.Equal(40, sizes[2]);
+    }
+
+    [Fact]
+    public void Fill_WeightsAreProportional()
+    {
+        var sizes = LayoutSolver.Solve(90, [Constraint.Fill(1), Constraint.Fill(2)]);
+        Assert.Equal(90, Sum(sizes));
+        Assert.Equal(30, sizes[0]);
+        Assert.Equal(60, sizes[1]);
+    }
+
+    [Fact]
+    public void Percentage_SumsToTotal()
+    {
+        var sizes = LayoutSolver.Solve(100, [Constraint.Percentage(25), Constraint.Percentage(75)]);
+        Assert.Equal([25, 75], sizes);
+    }
+
+    [Fact]
+    public void Min_GrowsToFillLeftover()
+    {
+        // Single Min(10) against 50 => grows to 50.
+        var sizes = LayoutSolver.Solve(50, [Constraint.Min(10)]);
+        Assert.Equal(50, sizes[0]);
+    }
+
+    [Fact]
+    public void Max_CapsSize_LeftoverGoesToFill()
+    {
+        var sizes = LayoutSolver.Solve(100, [Constraint.Max(20), Constraint.Fill()]);
+        Assert.Equal(20, sizes[0]);
+        Assert.Equal(80, sizes[1]);
+    }
+
+    [Fact]
+    public void OverConstrained_ShrinksToFit()
+    {
+        var sizes = LayoutSolver.Solve(50, [Constraint.Length(40), Constraint.Length(40)]);
+        Assert.Equal(50, Sum(sizes)); // never overflows
+        Assert.Equal(40, sizes[0]);
+        Assert.Equal(10, sizes[1]);
+    }
+
+    [Fact]
+    public void TinyTotal_DoesNotCrash()
+    {
+        var sizes = LayoutSolver.Solve(1, [Constraint.Fill(), Constraint.Fill(), Constraint.Fill()]);
+        Assert.Equal(1, Sum(sizes));
+    }
+
+    [Fact]
+    public void ZeroTotal_AllZero()
+    {
+        var sizes = LayoutSolver.Solve(0, [Constraint.Length(10), Constraint.Fill()]);
+        Assert.Equal(0, Sum(sizes));
+    }
+
+    [Fact]
+    public void Split_TilesParentExactly_Horizontal()
+    {
+        var rects = LayoutSolver.Split(new Rect(0, 0, 100, 10), Direction.Horizontal,
+            Constraint.Length(30), Constraint.Fill());
+        Assert.Equal(new Rect(0, 0, 30, 10), rects[0]);
+        Assert.Equal(new Rect(30, 0, 70, 10), rects[1]);
+        Assert.Equal(100, rects[1].Right); // no gap, no overflow
+    }
+
+    [Fact]
+    public void Split_Vertical_OffsetsCorrectly()
+    {
+        var rects = LayoutSolver.Split(new Rect(5, 5, 20, 30), Direction.Vertical,
+            Constraint.Length(10), Constraint.Fill());
+        Assert.Equal(new Rect(5, 5, 20, 10), rects[0]);
+        Assert.Equal(new Rect(5, 15, 20, 20), rects[1]);
+    }
+
+    [Fact]
+    public void FillRemainder_DistributedLeftToRight()
+    {
+        // 3 equal fills over 10 => 4,3,3 (largest remainder to the left).
+        var sizes = LayoutSolver.Solve(10, [Constraint.Fill(), Constraint.Fill(), Constraint.Fill()]);
+        Assert.Equal(10, Sum(sizes));
+        Assert.Equal(4, sizes[0]);
+        Assert.Equal(3, sizes[1]);
+        Assert.Equal(3, sizes[2]);
+    }
+}

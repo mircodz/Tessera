@@ -1,0 +1,155 @@
+using System;
+using System.Text;
+using Tessera.Primitives;
+
+namespace Tessera.Rendering;
+
+/// <summary>
+/// Holds a front buffer (on screen) and a back buffer (next frame). <see cref="ComputeDiff"/>
+/// emits the minimal ANSI to turn front into back — moving the cursor only on run breaks,
+/// re-emitting style only on change, skipping unchanged cells — then promotes back to front.
+/// </summary>
+public sealed class Screen
+{
+    private Surface _back;
+    private Cell[] _front;
+    private readonly AnsiStyleWriter _styleWriter;
+    private readonly StringBuilder _diffBuffer = new(4096);
+    private bool _frontValid;
+
+    public Screen(int width, int height, ColorDepth depth)
+    {
+        _back = new Surface(width, height);
+        _front = new Cell[width * height];
+        _styleWriter = new AnsiStyleWriter(depth);
+        _frontValid = false; // force a full paint on first diff
+    }
+
+    /// <summary>The back buffer widgets draw into for the next frame.</summary>
+    public Surface Back => _back;
+
+    public int Width => _back.Width;
+    public int Height => _back.Height;
+
+    /// <summary>Resizes both buffers and invalidates the front so the next diff repaints fully.</summary>
+    public void Resize(int width, int height)
+    {
+        _back.Resize(width, height);
+        _front = new Cell[width * height];
+        _frontValid = false;
+    }
+
+    /// <summary>Forces the next <see cref="ComputeDiff"/> to repaint every cell.</summary>
+    public void Invalidate() => _frontValid = false;
+
+    /// <summary>A concrete color substituted at emit time for cells with a default background;
+    /// null keeps backgrounds terminal-transparent.</summary>
+    public Color? DefaultBackground
+    {
+        get => _styleWriter.DefaultBackground;
+        set
+        {
+            if (_styleWriter.DefaultBackground != value)
+            {
+                _styleWriter.DefaultBackground = value;
+                _frontValid = false; // repaint fully so existing cells pick up the new bg
+            }
+        }
+    }
+
+    /// <summary>Returns the ANSI patching front→back, then promotes back to front. Empty if unchanged.</summary>
+    public string ComputeDiff()
+    {
+        var sb = _diffBuffer;
+        sb.Clear();
+        int w = _back.Width, h = _back.Height;
+
+        bool cursorKnown = false;
+        int cursorX = -1, cursorY = -1;
+        bool styleKnown = false;
+        Style lastStyle = Style.Default;
+
+        for (int y = 0; y < h; y++)
+        {
+            int x = 0;
+            while (x < w)
+            {
+                var cell = _back.Get(x, y);
+
+                // A continuation cell was already emitted with its wide partner; skip.
+                if (cell.IsContinuation)
+                {
+                    x++;
+                    continue;
+                }
+
+                bool changed = !_frontValid || !FrontCell(x, y, w).Equals(cell);
+                if (!changed)
+                {
+                    x++;
+                    continue;
+                }
+
+                // Move the cursor if we're not already positioned here.
+                if (!cursorKnown || cursorX != x || cursorY != y)
+                {
+                    sb.Append("\x1b[").Append(y + 1).Append(';').Append(x + 1).Append('H');
+                    cursorX = x;
+                    cursorY = y;
+                    cursorKnown = true;
+                }
+
+                // Emit style only when it differs from what's currently active.
+                if (!styleKnown || lastStyle != cell.Style)
+                {
+                    _styleWriter.WriteTransition(sb, cell.Style);
+                    lastStyle = cell.Style;
+                    styleKnown = true;
+                }
+
+                if (cell.IsEmpty)
+                {
+                    sb.Append(' ');
+                }
+                else
+                {
+                    cell.AppendTo(sb);
+                }
+
+                int advance = cell.Width == 0 ? 1 : cell.Width;
+                cursorX += advance;
+                x += advance;
+            }
+        }
+
+        if (sb.Length > 0)
+        {
+            sb.Append("\x1b[0m"); // leave the terminal in a clean state
+        }
+
+        PromoteBackToFront();
+        return sb.ToString();
+    }
+
+    private Cell FrontCell(int x, int y, int w)
+    {
+        if (!_frontValid)
+        {
+            return Cell.Blank();
+        }
+
+        return _front[y * w + x];
+    }
+
+    private void PromoteBackToFront()
+    {
+        int len = _back.Width * _back.Height;
+        if (_front.Length != len)
+        {
+            _front = new Cell[len];
+        }
+
+        Array.Copy(_back.Cells, _front, len);
+        _frontValid = true;
+    }
+}

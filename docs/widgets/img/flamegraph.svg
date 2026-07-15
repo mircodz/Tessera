@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="132" viewBox="0 0 420 132">
+<rect width="420" height="132" fill="#151515"/>
+<g transform="translate(12,12)">
+<rect x="0" y="0" width="396" height="18" fill="#6a9fb5"/>
+<rect x="0" y="18" width="216" height="18" fill="#f4bf75"/>
+<rect x="216" y="18" width="135" height="18" fill="#c9534f"/>
+<rect x="0" y="36" width="117" height="18" fill="#e07b53"/>
+<rect x="117" y="36" width="81" height="18" fill="#c9534f"/>
+<rect x="216" y="36" width="81" height="18" fill="#f0904f"/>
+<rect x="297" y="36" width="45" height="18" fill="#c9534f"/>
+<g font-family="ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, monospace" font-size="14" text-anchor="middle">
+<text x="13.5" y="14" textLength="9" fill="#141414">r</text>
+<text x="22.5" y="14" textLength="9" fill="#141414">o</text>
+<text x="31.5" y="14" textLength="9" fill="#141414">o</text>
+<text x="40.5" y="14" textLength="9" fill="#141414">t</text>
+<text x="13.5" y="32" textLength="9" fill="#141414">p</text>
+<text x="22.5" y="32" textLength="9" fill="#141414">a</text>
+<text x="31.5" y="32" textLength="9" fill="#141414">r</text>
+<text x="40.5" y="32" textLength="9" fill="#141414">s</text>
+<text x="49.5" y="32" textLength="9" fill="#141414">e</text>
+<text x="229.5" y="32" textLength="9" fill="#f0f0f0">r</text>
+<text x="238.5" y="32" textLength="9" fill="#f0f0f0">e</text>
+<text x="247.5" y="32" textLength="9" fill="#f0f0f0">n</text>
+<text x="256.5" y="32" textLength="9" fill="#f0f0f0">d</text>
+<text x="265.5" y="32" textLength="9" fill="#f0f0f0">e</text>
+<text x="274.5" y="32" textLength="9" fill="#f0f0f0">r</text>
+<text x="13.5" y="50" textLength="9" fill="#141414">l</text>
+<text x="22.5" y="50" textLength="9" fill="#141414">e</text>
+<text x="31.5" y="50" textLength="9" fill="#141414">x</text>
+<text x="130.5" y="50" textLength="9" fill="#f0f0f0">b</text>
+<text x="139.5" y="50" textLength="9" fill="#f0f0f0">u</text>
+<text x="148.5" y="50" textLength="9" fill="#f0f0f0">i</text>
+<text x="157.5" y="50" textLength="9" fill="#f0f0f0">l</text>
+<text x="166.5" y="50" textLength="9" fill="#f0f0f0">d</text>
+<text x="229.5" y="50" textLength="9" fill="#141414">l</text>
+<text x="238.5" y="50" textLength="9" fill="#141414">a</text>
+<text x="247.5" y="50" textLength="9" fill="#141414">y</text>
+<text x="256.5" y="50" textLength="9" fill="#141414">o</text>
+<text x="265.5" y="50" textLength="9" fill="#141414">u</text>
+<text x="274.5" y="50" textLength="9" fill="#141414">t</text>
+<text x="310.5" y="50" textLength="9" fill="#f0f0f0">p</text>
+<text x="319.5" y="50" textLength="9" fill="#f0f0f0">a</text>
+<text x="328.5" y="50" textLength="9" fill="#f0f0f0">i</text>
+<text x="337.5" y="50" textLength="9" fill="#f0f0f0">…</text>
+</g>
+</g>
+</svg>
