@@ -5,9 +5,8 @@ using Tessera.Rendering;
 using Tessera.Terminal;
 using Tessera.Text;
 using Tessera.Theming;
-using Tessera.Widgets;
 
-namespace Tessera.Charts;
+namespace Tessera.Widgets.Charts;
 
 /// <summary>
 /// A flame graph (rendered as a top-down icicle) for hierarchical cost — allocation stacks,

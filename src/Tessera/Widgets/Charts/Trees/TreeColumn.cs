@@ -1,7 +1,7 @@
 using System;
 using Tessera.Text;
 
-namespace Tessera.Widgets.Trees;
+namespace Tessera.Widgets.Charts.Trees;
 
 /// <summary>Horizontal alignment of a tree-table column's cell content.</summary>
 public enum TreeColumnAlign { Left, Right }

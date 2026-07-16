@@ -3,8 +3,8 @@ using System.Linq;
 using Tessera.Rendering;
 using Tessera.Terminal;
 using Tessera.Text;
-using Tessera.Widgets.Trees;
 using System.Text;
+using Tessera.Widgets.Charts.Trees;
 
 namespace Tessera.Tests;
 

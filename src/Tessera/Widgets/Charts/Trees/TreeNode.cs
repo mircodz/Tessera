@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Tessera.Widgets.Trees;
+namespace Tessera.Widgets.Charts.Trees;
 
 /// <summary>
 /// A node in a <see cref="TreeView{T}"/> wrapping a value of type <typeparamref name="T"/>.

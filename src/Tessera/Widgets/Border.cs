@@ -29,6 +29,14 @@ public sealed class Border : Widget
         Title = title;
     }
 
+    protected override void VisitChildren(System.Action<Widget> visit)
+    {
+        if (Child is not null)
+        {
+            visit(Child);
+        }
+    }
+
     private Style EffectiveStyle => Style ?? Theme.Current.BorderStyle;
     private Style EffectiveTitleStyle => TitleStyle ?? Theme.Current.HeaderStyle;
 

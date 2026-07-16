@@ -240,11 +240,26 @@ internal sealed class DemoHost : Widget
     private Widget _current = new Label(StyledText.Empty());
     private string _title = "";
     private string _blurb = "";
+    private App? _app;
 
     public DemoHost(DemoContext ctx, IReadOnlyList<Demo> demos)
     {
         _ctx = ctx;
         _demos = demos;
+    }
+
+    // Forward the mount lifecycle to whatever demo is currently shown, so demos with background
+    // work (AsyncContent) start when displayed and are cancelled when swapped away or on quit.
+    protected override void OnMount(App app)
+    {
+        _app = app;
+        _current.Mount(app);
+    }
+
+    protected override void OnUnmount()
+    {
+        _current.Unmount();
+        _app = null;
     }
 
     public void Show(int index)
@@ -255,9 +270,17 @@ internal sealed class DemoHost : Widget
         }
         var demo = _demos[index];
         _ctx.ResetSubscribers(); // drop the previous demo's animation hooks
+        if (_app is not null)
+        {
+            _current.Unmount(); // cancel the outgoing demo's background work
+        }
         _current = demo.Build(_ctx);
         _title = demo.Name;
         _blurb = demo.Blurb;
+        if (_app is { } app)
+        {
+            _current.Mount(app); // start the incoming demo's lifecycle
+        }
     }
 
     public override bool HasFocus

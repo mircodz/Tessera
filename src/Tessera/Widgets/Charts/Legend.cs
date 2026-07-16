@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Theming;
-using Tessera.Widgets;
 
-namespace Tessera.Charts;
+namespace Tessera.Widgets.Charts;
 
 /// <summary>One legend entry: a swatch color and its label (optionally with a value/percent).</summary>
 public sealed class LegendItem

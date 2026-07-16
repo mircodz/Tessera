@@ -5,7 +5,7 @@ using Tessera.Rendering;
 using Tessera.Terminal;
 using Tessera.Text;
 using Tessera.Widgets;
-using Tessera.Widgets.Trees;
+using Tessera.Widgets.Charts.Trees;
 
 namespace Tessera.Tests;
 

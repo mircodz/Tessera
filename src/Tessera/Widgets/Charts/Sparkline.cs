@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Theming;
-using Tessera.Widgets;
 
-namespace Tessera.Charts;
+namespace Tessera.Widgets.Charts;
 
 /// <summary>
 /// A single-row chart plotting a rolling series with the eight vertical block glyphs

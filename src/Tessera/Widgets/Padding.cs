@@ -17,6 +17,8 @@ public sealed class Padding : Widget
 
     public Padding(Widget child, int uniform) : this(child, new Thickness(uniform)) { }
 
+    protected override void VisitChildren(System.Action<Widget> visit) => visit(Child);
+
     /// <summary>Focus flows through to the child.</summary>
     public override bool HasFocus
     {

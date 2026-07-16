@@ -38,6 +38,14 @@ public sealed class Stack : Widget
         return this;
     }
 
+    protected override void VisitChildren(Action<Widget> visit)
+    {
+        for (int i = 0; i < Children.Count; i++)
+        {
+            visit(Children[i].Widget);
+        }
+    }
+
     public override void Render(Surface surface, Rect area)
     {
         if (area.IsEmpty || Children.Count == 0)

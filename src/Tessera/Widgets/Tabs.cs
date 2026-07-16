@@ -8,17 +8,41 @@ using Tessera.Theming;
 
 namespace Tessera.Widgets;
 
-/// <summary>One tab: a title and the widget shown when it is active.</summary>
+/// <summary>One tab: a title and the widget shown when it is active. Content can be lazy — built by
+/// a factory on first access — so tabs whose content is expensive to construct don't pay that cost
+/// until the tab is actually shown.</summary>
 public sealed class Tab
 {
     public string Title { get; set; }
-    public Widget Content { get; set; }
+
+    private Widget? _content;
+    private readonly Func<Widget>? _factory;
 
     public Tab(string title, Widget content)
     {
         Title = title;
-        Content = content;
+        _content = content;
     }
+
+    public Tab(string title, Func<Widget> factory)
+    {
+        Title = title;
+        _factory = factory;
+    }
+
+    /// <summary>The tab's content, materialized on first access when created from a factory.</summary>
+    public Widget Content
+    {
+        get => _content ??= _factory!();
+        set => _content = value;
+    }
+
+    /// <summary>Whether the content exists yet — false for a lazy tab that hasn't been shown.</summary>
+    public bool IsMaterialized => _content is not null;
+
+    /// <summary>Whether this tab's content has been through <see cref="Widget.Mount"/> — so the
+    /// owning <see cref="Tabs"/> mounts each tab's content exactly once, when it first materializes.</summary>
+    internal bool Mounted { get; set; }
 }
 
 /// <summary>
@@ -29,6 +53,10 @@ public sealed class Tab
 public sealed class Tabs : Widget
 {
     private int _active;
+
+    /// <summary>The live app, captured at mount, so tabs materialized later (on first show) can be
+    /// mounted too. Null until mounted / after unmount.</summary>
+    private App? _app;
 
     public List<Tab> Items { get; } = new();
 
@@ -49,12 +77,20 @@ public sealed class Tabs : Widget
     }
 
     // Keeps only the active tab's content focused, so a ScrollView/Input inside it receives
-    // keyboard input while inactive tabs' widgets stay dormant.
+    // keyboard input while inactive tabs' widgets stay dormant. Does NOT materialize lazy tabs that
+    // aren't active — the whole point of a lazy tab is to defer building its content until shown.
     private void UpdateContentFocus()
     {
         for (int i = 0; i < Items.Count; i++)
         {
-            Items[i].Content.HasFocus = i == _active;
+            if (i == _active)
+            {
+                Items[i].Content.HasFocus = true; // materializes the active tab (it's about to render)
+            }
+            else if (Items[i].IsMaterialized)
+            {
+                Items[i].Content.HasFocus = false;
+            }
         }
     }
 
@@ -62,10 +98,51 @@ public sealed class Tabs : Widget
 
     public override bool IsFocusable => true;
 
+    // ---- Lifecycle: mount each tab's content once it materializes; unmount all on teardown ----
+
+    protected override void OnMount(App app) => _app = app;
+
+    protected override void OnUnmount() => _app = null;
+
+    protected override void VisitChildren(Action<Widget> visit)
+    {
+        // Visit only content that has actually been mounted. Tab content is mounted lazily by
+        // EnsureMounted the first time a tab is shown (so this is empty during the initial Mount
+        // pass — EnsureMounted, not base recursion, is the sole mounter — and covers every live
+        // tab during the Unmount pass at teardown).
+        for (int i = 0; i < Items.Count; i++)
+        {
+            if (Items[i].Mounted)
+            {
+                visit(Items[i].Content);
+            }
+        }
+    }
+
+    // Mounts a tab's content the first time it becomes live (on materialization/first show), so an
+    // AsyncContent inside a lazy tab starts its lifecycle exactly when the tab is first rendered.
+    private void EnsureMounted(Tab tab)
+    {
+        if (_app is { } app && !tab.Mounted)
+        {
+            tab.Mounted = true;
+            tab.Content.Mount(app);
+        }
+    }
+
     public Tabs Add(string title, Widget content)
     {
         Items.Add(new Tab(title, content));
         UpdateContentFocus(); // keep the active tab's content focused as items are added
+        return this;
+    }
+
+    /// <summary>Adds a tab whose content is built lazily by <paramref name="factory"/> the first time
+    /// the tab is shown — so expensive content is not constructed until the user selects it.</summary>
+    public Tabs Add(string title, Func<Widget> factory)
+    {
+        Items.Add(new Tab(title, factory));
+        UpdateContentFocus();
         return this;
     }
 
@@ -84,6 +161,7 @@ public sealed class Tabs : Widget
         RenderBar(surface, barArea);
 
         var content = Items[_active].Content;
+        EnsureMounted(Items[_active]);
         if (!contentArea.IsEmpty)
         {
             surface.SetClip(contentArea);

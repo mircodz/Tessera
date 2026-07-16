@@ -1,3 +1,4 @@
+using System;
 using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Text;
@@ -51,6 +52,20 @@ public sealed class Spinner : Widget
     /// <summary>Spinner glyph color. Null uses the theme accent.</summary>
     public Color? Color { get; set; }
 
+    /// <summary>When true, the spinner drives its own animation via the app's coalesced repaint
+    /// path — no need for a consumer to call <see cref="Advance"/>. It is <b>idle when hidden</b>:
+    /// it only advances/requests a repaint from inside <see cref="Render"/>, so a spinner that isn't
+    /// on screen (e.g. an inactive tab) is never rendered, never asks for a frame, and runs no timer.
+    /// Off by default to preserve the manual, consumer-pumped behavior.</summary>
+    public bool AutoAnimate { get; set; }
+
+    /// <summary>Minimum wall-clock between auto-advance frame steps. The render loop is frame-capped
+    /// (~60fps); this throttles the glyph so it spins at a readable rate independent of frame rate.</summary>
+    public TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(80);
+
+    // Tick of the last auto-advance, so Interval throttles the glyph step without a timer/thread.
+    private long _lastStepTicks;
+
     public Spinner(SpinnerFrames? frames = null, string? label = null)
     {
         Frames = frames ?? SpinnerFrames.Dots;
@@ -84,6 +99,21 @@ public sealed class Spinner : Widget
             return;
         }
 
+        // Self-driven animation: advance on a wall-clock throttle, then ask the app for the next
+        // coalesced frame. No timer/thread — the frame loop re-renders us and we request again.
+        // Gated purely on being rendered: a hidden spinner isn't drawn, so it requests nothing and
+        // stays completely idle. Repaint.Request is a no-op when no app is running (e.g. offscreen).
+        if (AutoAnimate)
+        {
+            long now = Environment.TickCount64;
+            if (now - _lastStepTicks >= (long)Interval.TotalMilliseconds)
+            {
+                Advance();
+                _lastStepTicks = now;
+            }
+            Repaint.Request();
+        }
+
         var theme = Theme.Current;
         var glyphStyle = new Style(Color ?? theme.Accent, Primitives.Color.Default);
 
@@ -92,15 +122,29 @@ public sealed class Spinner : Widget
         if (!string.IsNullOrEmpty(Label))
         {
             x = surface.DrawText(x, area.Y, " ", glyphStyle);
-            var labelStyle = new Style(theme.Foreground, Primitives.Color.Default);
             var remaining = area.Right - x;
             if (remaining > 0)
             {
+                // Cache the label's StyledText so the steady state (a spinning glyph) allocates
+                // nothing per frame — rebuild only when the label text or theme foreground changes.
+                if (_labelCache is null ||
+                    !ReferenceEquals(_cachedLabel, Label) ||
+                    !_cachedLabelFg.Equals(theme.Foreground))
+                {
+                    _cachedLabel = Label;
+                    _cachedLabelFg = theme.Foreground;
+                    _labelCache = new StyledText(Label, new Style(theme.Foreground, Primitives.Color.Default));
+                }
+
                 surface.SetClip(new Rect(x, area.Y, remaining, 1));
-                TextRenderer.DrawLine(surface, x, area.Y, remaining,
-                    new StyledText(Label, labelStyle), Justify.Left);
+                TextRenderer.DrawLine(surface, x, area.Y, remaining, _labelCache, Justify.Left);
                 surface.ResetClip();
             }
         }
     }
+
+    // Cached label render text + the inputs it was built from (see Render).
+    private StyledText? _labelCache;
+    private string? _cachedLabel;
+    private Color _cachedLabelFg;
 }

@@ -4,9 +4,8 @@ using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Text;
 using Tessera.Theming;
-using Tessera.Widgets;
 
-namespace Tessera.Charts;
+namespace Tessera.Widgets.Charts;
 
 /// <summary>
 /// A horizontal bar chart: one row per labeled value, bar length proportional to the largest,

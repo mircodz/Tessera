@@ -1,4 +1,4 @@
-namespace Tessera.Widgets.Trees;
+namespace Tessera.Widgets.Charts.Trees;
 
 /// <summary>
 /// The glyphs used to draw a tree's indentation guides and expand affordances. Swappable so

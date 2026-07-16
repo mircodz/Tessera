@@ -1,7 +1,7 @@
 using System.Text;
-using Tessera.Charts;
 using Tessera.Primitives;
 using Tessera.Rendering;
+using Tessera.Widgets.Charts;
 
 namespace Tessera.Tests;
 

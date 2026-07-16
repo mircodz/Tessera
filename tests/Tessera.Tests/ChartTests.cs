@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Tessera.Charts;
 using Tessera.Primitives;
 using Tessera.Rendering;
+using Tessera.Widgets.Charts;
 
 namespace Tessera.Tests;
 

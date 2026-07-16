@@ -4,9 +4,8 @@ using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Text;
 using Tessera.Theming;
-using Tessera.Widgets;
 
-namespace Tessera.Charts;
+namespace Tessera.Widgets.Charts;
 
 /// <summary>One segment of a <see cref="ProportionBar"/>: a label, a value, and a color.</summary>
 public sealed class Segment

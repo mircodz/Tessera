@@ -28,6 +28,42 @@ public abstract class Widget
     /// <summary>Handles an input event; returns true if consumed. Default: ignores all input.</summary>
     public virtual bool OnEvent(InputEvent e) => false;
 
+    // ---- Lifecycle (mount/unmount) ----
+    //
+    // A minimal, mount/unmount-only lifecycle: the app notifies the tree when it enters
+    // (Mount) and leaves (Unmount) the live app, so a widget can start/stop background work
+    // (e.g. AsyncContent cancelling its factory, a Skeleton beginning its shimmer). This runs
+    // ONLY at mount/unmount — never per frame — so it adds nothing to the render hot path.
+    // Containers opt in by overriding VisitChildren; leaf widgets need nothing.
+
+    /// <summary>Called once when the widget enters the live app tree. Override to start
+    /// lifecycle-scoped work. Always call the base or drive children via <see cref="VisitChildren"/>.</summary>
+    protected virtual void OnMount(App app) { }
+
+    /// <summary>Called once when the widget leaves the tree or the app tears down. Override to
+    /// cancel background work / release resources.</summary>
+    protected virtual void OnUnmount() { }
+
+    /// <summary>Enumerates this widget's live children for lifecycle propagation. Containers
+    /// override to forward <see cref="Mount"/>/<see cref="Unmount"/> to their children. Default:
+    /// no children.</summary>
+    protected virtual void VisitChildren(Action<Widget> visit) { }
+
+    /// <summary>Drives the mount lifecycle for this widget and its subtree. Called by the app on
+    /// the root, and by containers on children they add after mount.</summary>
+    public void Mount(App app)
+    {
+        OnMount(app);
+        VisitChildren(child => child.Mount(app));
+    }
+
+    /// <summary>Drives the unmount lifecycle for this subtree (children first, then self).</summary>
+    public void Unmount()
+    {
+        VisitChildren(static child => child.Unmount());
+        OnUnmount();
+    }
+
     // ---- Clickable links (opt-in; costs nothing until a widget renders a linked span) ----
 
     private List<LinkHit>? _links;

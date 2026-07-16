@@ -1,12 +1,12 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
-using Tessera.Charts;
 using Tessera.Layout;
 using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Text;
 using Tessera.Widgets;
-using Tessera.Widgets.Trees;
+using Tessera.Widgets.Charts;
+using Tessera.Widgets.Charts.Trees;
 
 namespace Tessera.Benchmarks;
 
@@ -26,6 +26,11 @@ public class WidgetBenchmarks
     private TreeView<int> _deepTree = null!;
     private Widget _appFrame = null!;
     private Rect _area;
+
+    // Steady-state AsyncContent: one showing an animating spinner placeholder (still loading), one
+    // that has already swapped to its real child. Both must render at zero per-frame allocation.
+    private AsyncContent _asyncLoading = null!;
+    private AsyncContent _asyncLoaded = null!;
 
     [Params(50, 200)]
     public int Rows;
@@ -69,6 +74,21 @@ public class WidgetBenchmarks
 
         _appFrame = BuildAppFrame();
         _chartTab = BuildChartTab();
+
+        // Loading state: an animating spinner placeholder, factory that never completes during the
+        // benchmark (so it stays on the placeholder). Rendered once to kick off the (idle) work.
+        _asyncLoading = new AsyncContent(
+            ct => { ct.WaitHandle.WaitOne(); return new Label("never"); },
+            placeholder: new Spinner(SpinnerFrames.Dots, "Loading…") { AutoAnimate = true });
+        _asyncLoading.Render(_surface, _area);
+
+        // Loaded state: a factory returning immediately; spin-render until the child is published.
+        _asyncLoaded = new AsyncContent(_ => new Label("Loaded content."));
+        for (int i = 0; i < 2000 && !_asyncLoaded.IsLoaded; i++)
+        {
+            _asyncLoaded.Render(_surface, _area);
+            System.Threading.Thread.Sleep(1);
+        }
     }
 
     // Replica of the demo's Charts tab: proportion bar + legend + sparkline + bar chart + a
@@ -190,5 +210,11 @@ public class WidgetBenchmarks
 
     [Benchmark(Description = "Charts tab (proportion+legend+sparkline+bar+braille lines)")]
     public void ChartTab() => _chartTab.Render(_surface, _area);
+
+    [Benchmark(Description = "AsyncContent steady-state (spinner placeholder animating)")]
+    public void AsyncLoadingRender() => _asyncLoading.Render(_surface, _area);
+
+    [Benchmark(Description = "AsyncContent steady-state (loaded child shown)")]
+    public void AsyncLoadedRender() => _asyncLoaded.Render(_surface, _area);
 }
 

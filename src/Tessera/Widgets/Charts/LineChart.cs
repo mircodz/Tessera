@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Theming;
-using Tessera.Widgets;
 
-namespace Tessera.Charts;
+namespace Tessera.Widgets.Charts;
 
 /// <summary>One named data series: a color and a list of (time, value) samples.</summary>
 public sealed class Series

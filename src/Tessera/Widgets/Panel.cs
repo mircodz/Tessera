@@ -31,6 +31,14 @@ public sealed class Panel : Widget
         Title = title;
     }
 
+    protected override void VisitChildren(System.Action<Widget> visit)
+    {
+        if (Child is not null)
+        {
+            visit(Child);
+        }
+    }
+
     /// <summary>Focus flows through to the child.</summary>
     public override bool HasFocus
     {

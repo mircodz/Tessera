@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Tessera.Charts;
+namespace Tessera.Widgets.Charts;
 
 /// <summary>
 /// A node in a <see cref="FlameGraph{T}"/>: a labeled frame with a numeric weight (bytes,

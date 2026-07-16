@@ -195,6 +195,10 @@ public sealed class App : IDisposable
         _terminal.EnterRawMode();
         _running = true;
 
+        // Wire the ambient repaint seam so widgets (spinners, skeletons, async loaders) can
+        // request a coalesced repaint from within themselves for the duration of the loop.
+        Repaint.Callback = Invalidate;
+
         // Enable any-motion tracking so widgets receive bare hover (Move) events. This is a
         // high-frequency stream; apps on slow links can turn it off via MouseHoverEnabled.
         if (MouseHoverEnabled)
@@ -207,6 +211,7 @@ public sealed class App : IDisposable
 
         try
         {
+            Root?.Mount(this); // notify the tree it entered the live app (starts lifecycles)
             Render(); // initial paint
             long lastRenderTicks = Environment.TickCount64;
 
@@ -257,6 +262,8 @@ public sealed class App : IDisposable
         finally
         {
             _running = false;
+            Root?.Unmount(); // let the tree cancel background work / release lifecycle resources
+            Repaint.Callback = null;
             if (MouseHoverEnabled)
             {
                 _terminal.Write(Terminal.Ansi.DisableMotion);

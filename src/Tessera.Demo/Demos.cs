@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Tessera.Charts;
 using Tessera.Layout;
 using Tessera.Primitives;
 using Tessera.Text;
 using Tessera.Theming;
 using Tessera.Widgets;
-using Tessera.Widgets.Trees;
+using Tessera.Widgets.Charts;
+using Tessera.Widgets.Charts.Trees;
 
 namespace Tessera.Demo;
 
@@ -23,6 +23,8 @@ internal static class Demos
         new("Table", "sortable, striped, selectable rows", Table),
         new("Tree", "collapsible, lazy, clickable links", Tree),
         new("Tabs", "tabbed container with a lens bar", TabsDemo),
+        new("Dashboard", "many widgets composed on one page", Dashboard),
+        new("Async load", "off-thread widget loading with a spinner", AsyncLoad),
         new("Line chart", "multi-series braille plot (live)", LineChartDemo),
         new("Sparkline", "compact rolling series (live)", SparklineDemo),
         new("Bar chart", "horizontal bars, sub-cell precision", BarChartDemo),
@@ -34,7 +36,10 @@ internal static class Demos
         new("Panels & borders", "framed containers, border styles", Panels),
         new("Overlay", "modal dialog over dimmed content", OverlayDemo),
         new("Text & wrap", "styled runs, word wrapping, justify", TextDemo),
-        new("Gradient", "truecolor interpolation", Gradient),
+        new("Custom: gradient", "composed widget — truecolor interpolation", Gradient),
+        new("Custom: swatches", "composed widget — color swatch grid", SwatchGridDemo),
+        new("Custom: heatmap", "composed widget — contribution heatmap", HeatmapDemo),
+        new("Custom: toggle", "composed widget — pill toggle switch", ToggleDemo),
     ];
 
     // ---- Data widgets ----
@@ -123,6 +128,112 @@ internal static class Demos
             .Add("Overview", CenteredNote("Tab 1 — Left/Right or 1-9 to switch"))
             .Add("Details", CenteredNote("Tab 2 — each tab holds its own widget"))
             .Add("Settings", CenteredNote("Tab 3 — the active tab keeps focus")));
+
+    // ---- Dashboard: many widgets composed on a single page ----
+
+    // A 2×2 grid of panels — table, flamegraph, sparkline, bar chart — plus a proportion strip and a
+    // live spinner header. Shows Tessera composing heterogeneous widgets with nested Stacks; the
+    // sparkline animates off ctx.Tick like the other live demos.
+    private static Widget Dashboard(DemoContext ctx)
+    {
+        // Top-left: a compact allocation table.
+        var table = new Table { ShowHeader = true, Striped = true, SelectedIndex = 0 };
+        table.Columns.Add(new Column("Type", Constraint.Fill()));
+        table.Columns.Add(new Column("MiB", Constraint.Length(7), Alignment.Right));
+        table.Columns.Add(new Column("Count", Constraint.Length(7), Alignment.Right));
+        string[] types = { "String", "Byte[]", "Dictionary", "Task", "Node<T>", "Buffer" };
+        var rng = new Random(11);
+        for (int i = 0; i < types.Length; i++)
+        {
+            table.Rows.Add(new[] { types[i], $"{rng.Next(4, 220)}.{rng.Next(0, 9)}", $"{rng.Next(50, 9000)}" });
+        }
+
+        // Top-right: a flamegraph.
+        var flame = new FlameGraph<int> { LabelSelector = n => n.Label };
+        var froot = new FlameNode<int>(0, "root", 1_000_000);
+        BuildFlame(froot, 0, 5, 3, froot.Weight, new Random(2));
+        flame.Root = froot;
+
+        // Bottom-left: a live sparkline.
+        var spark = new Sparkline { BaselineZero = true };
+        double v = 0.5;
+        var srng = new Random(3);
+        void PushSpark() => spark.Push(v = Math.Clamp(v + (srng.NextDouble() - 0.5) * 0.3, 0, 1));
+        for (int i = 0; i < 80; i++) PushSpark();
+        ctx.Tick += _ => PushSpark();
+
+        // Bottom-right: a bar chart.
+        var bar = new BarChart
+        {
+            Values = { ("heap", 42), ("stack", 18), ("code", 27), ("meta", 9), ("jit", 33) },
+            BarColors =
+            {
+                Colors.Hex("#6a9fb5"), Colors.Hex("#90a959"), Colors.Hex("#f4bf75"),
+                Colors.Hex("#aa759f"), Colors.Hex("#ac4142"),
+            },
+        };
+
+        // A proportion strip across the bottom.
+        var strip = new ProportionBar { ShowInlineLabels = true };
+        strip.Segments.Add(new Segment("Gen0", 55, Colors.Hex("#6a9fb5")));
+        strip.Segments.Add(new Segment("Gen1", 28, Colors.Hex("#90a959")));
+        strip.Segments.Add(new Segment("Gen2", 17, Colors.Hex("#f4bf75")));
+
+        // A live spinner in the header, self-animating (no manual Advance).
+        var spinner = new Spinner(SpinnerFrames.Dots, "live") { AutoAnimate = true };
+
+        var topRow = new Stack(Direction.Horizontal)
+            .Add(new Panel(table, " Allocations ") { BorderStyle = BorderStyle.Rounded }, Constraint.Fill())
+            .Add(new Panel(flame, " Flamegraph ") { BorderStyle = BorderStyle.Rounded }, Constraint.Fill());
+
+        var bottomRow = new Stack(Direction.Horizontal)
+            .Add(new Panel(spark, " Throughput ") { BorderStyle = BorderStyle.Rounded }, Constraint.Fill())
+            .Add(new Panel(bar, " Segments ") { BorderStyle = BorderStyle.Rounded }, Constraint.Fill());
+
+        var header = new Stack(Direction.Horizontal)
+            .Add(new Label(StyledText.Of("Profiler overview").Bold().Fg(Theme.Current.Accent)), Constraint.Fill())
+            .Add(spinner, Constraint.Length(10));
+
+        return Padded(new Stack(Direction.Vertical)
+            .Add(header, Constraint.Length(1))
+            .Add(topRow, Constraint.Fill(2))
+            .Add(bottomRow, Constraint.Fill(2))
+            .Add(new Panel(strip, " GC heaps ") { BorderStyle = BorderStyle.Rounded }, Constraint.Length(3)));
+    }
+
+    // ---- Async loading ----
+
+    // Wraps each tab's expensive content in an AsyncContent: the tab paints an animated spinner on
+    // its very first frame (no UI freeze), the factory runs off-thread honoring its CancellationToken
+    // (simulated here with a wait), then the real widget swaps in. Switching away before it finishes
+    // leaves the work running harmlessly off-thread; quitting cancels it.
+    private static Widget AsyncLoad(DemoContext ctx) =>
+        Padded(new Tabs()
+            .Add("Fast (0.8s)", () => new AsyncContent(ct => BuildAfterDelay(ct, 800,
+                "Fast task", "Loaded after a short delay.")))
+            .Add("Slow (2.5s)", () => new AsyncContent(ct => BuildAfterDelay(ct, 2500,
+                "Slow task", "A longer job — the spinner keeps animating and input stays live.")))
+            .Add("Fails", () => new AsyncContent((Func<System.Threading.CancellationToken, Widget>)(ct =>
+            {
+                ct.WaitHandle.WaitOne(1000);
+                ct.ThrowIfCancellationRequested();
+                throw new InvalidOperationException("the factory threw — this is the error widget");
+            }))));
+
+    // Simulates an expensive off-thread task: waits (respecting cancellation), then returns a real
+    // widget. Runs on a background thread — the UI stays responsive throughout.
+    private static Widget BuildAfterDelay(System.Threading.CancellationToken ct, int ms, string title, string body)
+    {
+        // Cooperative wait: bail out promptly if the token is cancelled (tab removed / app quit).
+        if (ct.WaitHandle.WaitOne(ms))
+        {
+            ct.ThrowIfCancellationRequested();
+        }
+        return new Stack(Direction.Vertical)
+            .Add(new Label(StyledText.Of(title).Bold().Fg(Theme.Current.Accent)), Constraint.Length(1))
+            .Add(new Label(StyledText.Empty()), Constraint.Length(1))
+            .Add(new Label(new StyledText(body, Theme.Current.TextStyle), Justify.Left) { Wrap = true }, Constraint.Fill());
+    }
 
     // ---- Charts (live) ----
 
@@ -380,6 +491,43 @@ internal static class Demos
             .Add(new Label(StyledText.Empty()), Constraint.Length(1))
             .Add(new GradientBar("█", Colors.Hsl(0, 0.7, 0.5), Colors.Hsl(120, 0.7, 0.5), Colors.Hsl(240, 0.7, 0.5)), Constraint.Length(1))
             .Add(new Label(StyledText.Empty()), Constraint.Fill()));
+
+    // ---- helpers ----
+
+    // ---- Custom (composed) widgets: not part of the framework, shown to demonstrate that a widget
+    // is just Render(surface, area). Their source lives in CustomWidgets.cs. ----
+
+    private static Widget SwatchGridDemo(DemoContext ctx)
+    {
+        var colors = new[]
+        {
+            Colors.Hex("#6a9fb5"), Colors.Hex("#90a959"), Colors.Hex("#f4bf75"), Colors.Hex("#aa759f"),
+            Colors.Hex("#ac4142"), Colors.Hex("#75b5aa"), Colors.Hex("#d28445"), Colors.Hex("#8f5536"),
+        };
+        var grid = new ColorSwatchGrid { Colors = colors, Columns = 8, Selected = 2, HasFocus = true };
+        return Padded(new Stack(Direction.Vertical)
+            .Add(grid, Constraint.Length(5))
+            .Add(new Label(new StyledText("↑↓←→ or click to pick a swatch", Theme.Current.MutedStyle)), Constraint.Length(1)));
+    }
+
+    private static Widget HeatmapDemo(DemoContext ctx)
+    {
+        var rng = new Random(5);
+        var vals = new double[20, 7];
+        for (int w = 0; w < 20; w++)
+            for (int d = 0; d < 7; d++)
+                vals[w, d] = Math.Pow(rng.NextDouble(), 1.5);
+        return Padded(new Heatmap { Values = vals });
+    }
+
+    private static Widget ToggleDemo(DemoContext ctx)
+    {
+        var toggle = new ToggleSwitch { On = true, HasFocus = true };
+        return Padded(new Stack(Direction.Vertical)
+            .Add(toggle, Constraint.Length(1))
+            .Add(new Label(StyledText.Empty()), Constraint.Length(1))
+            .Add(new Label(new StyledText("Space/Enter or click to toggle", Theme.Current.MutedStyle)), Constraint.Length(1)));
+    }
 
     // ---- helpers ----
 

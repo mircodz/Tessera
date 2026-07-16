@@ -1,10 +1,10 @@
 using System;
 using System.Text;
 using BenchmarkDotNet.Attributes;
-using Tessera.Charts;
 using Tessera.Primitives;
 using Tessera.Rendering;
 using Tessera.Terminal;
+using Tessera.Widgets.Charts;
 
 namespace Tessera.Benchmarks;
 

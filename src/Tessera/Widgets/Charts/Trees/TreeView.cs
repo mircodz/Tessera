@@ -6,7 +6,7 @@ using Tessera.Terminal;
 using Tessera.Text;
 using Tessera.Theming;
 
-namespace Tessera.Widgets.Trees;
+namespace Tessera.Widgets.Charts.Trees;
 
 /// <summary>
 /// A collapsible tree over an arbitrary value type <typeparamref name="T"/>. The caller
